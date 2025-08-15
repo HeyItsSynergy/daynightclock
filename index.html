@@ -5,7 +5,304 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>日夜时钟</title>
 <style>
+html, body {<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日夜时钟</title>
+<style>
 html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: Arial, Helvetica, sans-serif;
+    text-align: center;
+    transition: background 0.5s, color 0.5s;
+    position: relative;
+}
+
+/* Background layer for clouds/stars */
+#background {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0; /* no negative z-index */
+}
+
+.cloud, .star {
+    position: absolute;
+    background-repeat: no-repeat;
+    background-size: contain;
+    z-index: 1; /* keep above background color */
+}
+
+/* Clouds animation */
+@keyframes moveCloud {
+    from { transform: translateX(-20%); }
+    to { transform: translateX(120%); }
+}
+.cloud {
+     filter: blur(.2px);
+     opacity: 0.4;
+}
+
+/* Stars animation */
+@keyframes twinkle {
+    0%, 100% { opacity: 0.2; }
+    50% { opacity: 0.8; }
+}
+.star {
+    background: white;
+    border-radius: 50%;
+}
+
+/* Clock styles */
+#timeContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+#time {
+    display: flex;
+    align-items: flex-end;
+    font-size: 15vw;
+    font-weight: bold;
+    text-shadow: 2px 2px 2px rgba(0,0,0,0.5);
+    z-index: 2;
+}
+#time span.ampm {
+    font-size: 7vw;
+    font-weight: bold;
+    margin-left: 1vw;
+    padding: 0.5vw 1vw;
+    border-radius: 0.5vw;
+    text-shadow: 2px 2px 2px rgba(0,0,0,0.5);
+    transition: background 0.5s;
+    display: inline-block;
+}
+
+#dateText {
+    font-size: 10vw;
+    margin-top: 1vh;
+    font-weight: bold;
+    text-shadow: 2px 2px 2px rgba(0,0,0,0.5);
+    z-index: 2;
+}
+#weekday {
+    font-size: 10vw;
+    font-weight: bold;
+    text-shadow: 2px 2px 2px rgba(0,0,0,0.5);
+    margin-bottom: 1vh;
+    z-index: 2;
+}
+
+#daynight {
+    font-size: 10vw;
+    margin-top: 3vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    text-shadow: 2px 2px 2px rgba(0,0,0,0.5);
+    z-index: 2;
+}
+#daynightText {
+    display: inline-block;
+    animation: textPulse 3s infinite alternate;
+}
+#daynight img {
+    width: 12vw;
+    height: 12vw;
+    margin-left: 2vw;
+    animation: glow 3s infinite alternate;
+}
+#colon {
+    animation: blink 1.5s step-start infinite;
+}
+@keyframes blink {
+    50% { opacity: 0; }
+}
+@keyframes textPulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.1); }
+}
+@keyframes glow {
+    from { filter: drop-shadow(0 0 5px #fff) brightness(1); transform: rotate(0deg); }
+    to { filter: drop-shadow(0 0 20px #fff) brightness(1.25); transform: rotate(10deg); }
+}
+</style>
+</head>
+<body>
+
+<div id="background"></div>
+
+<div id="timeContainer">
+<div id="time">
+  <span id="hours">--</span><span id="colon">:</span><span id="minutes">--</span>
+  <span class="ampm">--</span>
+</div>
+</div>
+
+<div id="dateText">--</div>
+<div id="weekday">--</div>
+
+<div id="daynight">
+  <span id="daynightText"></span>
+  <img id="icon" src="">
+</div>
+
+<script>
+let isDaytimePrev = null;
+
+/* ---------- config ---------- */
+const CLOUD_COUNT = 5;
+const STAR_TOP_COUNT = 18;
+const STAR_BOTTOM_COUNT = 12;
+const translations = {
+  am:"上午", 
+  pm:"下午", 
+  day:"白天", 
+  night:"夜晚", 
+  days:["星期日","星期一","星期二","星期三","星期四","星期五","星期六"] 
+};
+
+const sunIcon = "data:image/svg+xml;base64," + btoa(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="14" fill="orange"/><g stroke="orange" stroke-width="4"><line x1="32" y1="2" x2="32" y2="14"/><line x1="32" y1="50" x2="32" y2="62"/><line x1="2" y1="32" x2="14" y2="32"/><line x1="50" y1="32" x2="62" y2="32"/><line x1="11" y1="11" x2="19" y2="19"/><line x1="45" y1="45" x2="53" y2="53"/><line x1="11" y1="53" x2="19" y2="45"/><line x1="45" y1="19" x2="53" y2="11"/></g></svg>`);
+const moonIcon = "data:image/svg+xml;base64," + btoa(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path fill="lightyellow" d="M33 2a30 30 0 1 0 29 38A24 24 0 0 1 33 2z"/></svg>`);
+
+const bg = document.getElementById("background");
+
+function clearBackground() {
+    bg.innerHTML = "";
+}
+
+/* create fluffy cloud */
+function createCloudInstance(leftPct){
+  const container = document.createElement('div');
+  container.className = 'cloud';
+  const w = 18 + Math.random()*16; // vw
+  const h = w * 0.55; 
+  container.style.width = w + 'vw';
+  container.style.height = h + 'vw';
+  container.style.top = (8 + Math.random()*42) + 'vh';
+  container.style.left = leftPct + 'vw';
+  container.style.opacity = 0.55 + Math.random()*0.3;
+  const dur = 28 + Math.random()*22;
+  container.style.animation = `moveCloud ${dur}s linear infinite`;
+
+  const puffCount = 3 + Math.floor(Math.random()*2);
+  for(let i=0;i<puffCount;i++){
+    const puff = document.createElement('div');
+    puff.style.position = 'absolute';
+    const pw = (28 + Math.random()*40);
+    const ph = pw * (0.5 + Math.random()*0.25);
+    puff.style.width = pw + '%';
+    puff.style.height = ph + '%';
+    puff.style.left = (i * (60 / puffCount) + Math.random()*10) + '%';
+    puff.style.top = (Math.random()*20) + '%';
+    puff.style.background = 'white';
+    puff.style.opacity = '0.5';
+    puff.style.borderRadius = '50%';
+    puff.style.boxShadow = '0 6px 10px rgba(0,0,0,0.08)';
+    container.appendChild(puff);
+  }
+  bg.appendChild(container);
+}
+
+/* create star */
+function createStarInstance(xPct, yVh, sizeVmin, twinkleDur){
+  const s = document.createElement('div');
+  s.className = 'star';
+  s.style.left = xPct + 'vw';
+  s.style.top = yVh + 'vh';
+  s.style.width = sizeVmin + 'vmin';
+  s.style.height = sizeVmin + 'vmin';
+  s.style.background = 'white';
+  s.style.borderRadius = '50%';
+  s.style.opacity = (0.18 + Math.random()*0.6).toString();
+  s.style.animation = `twinkle ${twinkleDur}s ease-in-out ${Math.random()*1.5}s infinite`;
+  bg.appendChild(s);
+}
+
+/* populate background */
+function createBackgroundElements(isDaytime){
+  clearBackground();
+  if(isDaytime){
+    bg.style.backgroundColor = "#ffe5b0"; // solid day color
+    for(let i=0;i<CLOUD_COUNT;i++){
+      const left = Math.random()*120 - 20;
+      createCloudInstance(left);
+    }
+  } else {
+    bg.style.backgroundColor = "#001a33"; // solid night color
+    for(let i=0;i<STAR_TOP_COUNT;i++){
+      const x = Math.random()*100;
+      const y = Math.random()*14;
+      const size = 0.6 + Math.random()*1.4;
+      const dur = 2 + Math.random()*4;
+      createStarInstance(x,y,size,dur);
+    }
+    for(let i=0;i<STAR_BOTTOM_COUNT;i++){
+      const x = Math.random()*100;
+      const y = 86 + Math.random()*12;
+      const size = 0.6 + Math.random()*1.4;
+      const dur = 2 + Math.random()*4;
+      createStarInstance(x,y,size,dur);
+    }
+  }
+}
+
+function updateClock() {
+    const now = new Date();
+    let hours = now.getHours();
+    const minutes = now.getMinutes().toString().padStart(2,'0');
+    const ampm = hours >= 12 ? translations.pm : translations.am;
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+
+    document.getElementById("hours").textContent = hours.toString().padStart(2,'0');
+    document.getElementById("minutes").textContent = minutes;
+    const ampmElement = document.querySelector("#time .ampm");
+    ampmElement.textContent = ampm;
+
+    document.getElementById("dateText").textContent = `${now.getFullYear()} 年 ${now.getMonth()+1} 月 ${now.getDate()}日`;
+    document.getElementById("weekday").textContent = translations.days[now.getDay()];
+
+    const isDaytime = now.getHours() >= 6 && now.getHours() < 18;
+    document.getElementById("daynightText").textContent = isDaytime ? translations.day : translations.night;
+    document.getElementById("icon").src = isDaytime ? sunIcon : moonIcon;
+
+if (isDaytime) {
+    document.body.style.color = "#eb8509";   // Daytime font color
+    ampmElement.style.color = "#000000";
+} else {
+    document.body.style.color = "#ADD8E6";   // Nighttime font color
+    ampmElement.style.color = "#ADD8E6";
+}
+
+
+    if(isDaytime !== isDaytimePrev){
+        createBackgroundElements(isDaytime);
+        isDaytimePrev = isDaytime;
+    }
+}
+
+updateClock();
+setInterval(updateClock, 1000);
+</script>
+</body>
+</html>
+
     margin: 0;
     padding: 0;
     height: 100%;
@@ -332,3 +629,4 @@ setInterval(updateClock, 1000);
 </script>
 </body>
 </html>
+
