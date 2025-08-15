@@ -292,9 +292,20 @@ function updateClock() {
     document.getElementById("daynightText").textContent = isDaytime ? translations.day : translations.night;
     document.getElementById("icon").src = isDaytime ? sunIcon : moonIcon;
 
-    document.body.style.background = isDaytime 
-        ? "linear-gradient(to bottom, #ffe5b0, #ffe5b0, #FFF8DC, #FFF8DC, #FFF8DC, #FFF8DC)" 
-        : "linear-gradient(to bottom, #001a33, #000814)";
+if (isDaytime) {
+    document.body.style.backgroundColor = "#ffe5b0"; // fallback solid
+    document.body.style.background = 
+        "-webkit-linear-gradient(top, #ffe5b0, #FFF8DC)"; // for old Safari
+    document.body.style.background = 
+        "linear-gradient(to bottom, #ffe5b0, #ffe5b0, #FFF8DC, #FFF8DC)";
+} else {
+    document.body.style.backgroundColor = "#001a33"; // fallback solid
+    document.body.style.background = 
+        "-webkit-linear-gradient(top, #001a33, #000814)"; // old Safari syntax
+    document.body.style.background = 
+        "linear-gradient(to bottom, #001a33, #000814)";
+}
+
     document.body.style.color = isDaytime ? "#eb8509" : "#ADD8E6";
     ampmElement.style.color = isDaytime ? "#000000" : "#FFF";
 
